@@ -50,10 +50,11 @@ This skill ships with templates and a parser reference. Use them rather than rec
 Before filing or updating, take a few seconds to check the project's state. This is cheap and prevents drift.
 
 1. **Find the issues folder.** Usually `issues/` at the repo root.
-2. **Read `issues/Issues.md`** if it exists — it's the project's local guide and defines the canonical status vocabulary, module conventions, and any project-specific rules. **`Issues.md` is authoritative for its project**: if anything there contradicts this skill, follow `Issues.md`.
-3. **If `Issues.md` is missing**, create it from `assets/Issues-md-template.md` before filing the first issue. Fill in the project name and a real one-paragraph description.
-4. **Glance at one or two existing issue files** to absorb the project's tone (how detailed are descriptions, what platforms appear, how modules are named).
-5. **Check whether `issues/` is tracked by git.** Run `git rev-parse --is-inside-work-tree` and `git check-ignore -q issues/`. The result determines whether lifecycle events below produce commits or are working-copy-only edits — see the "Git tracking" section.
+2. **Read `issues/Issues.md`** if it exists — it's the project's local guide and defines the canonical status vocabulary, module conventions, build/verify command, commit conventions, and any project-specific rules. **`Issues.md` is authoritative for its project**: if anything there contradicts this skill, follow `Issues.md`.
+3. **Read `CLAUDE.md`** at the repo root if it exists — project-wide guidance for Claude that may include code conventions, restricted areas, or workflow tweaks that affect issue work. Treat its instructions as binding.
+4. **If `Issues.md` is missing**, create it from `assets/Issues-md-template.md` before filing the first issue. Fill in the project name and a real one-paragraph description.
+5. **Glance at one or two existing issue files** to absorb the project's tone (how detailed are descriptions, what platforms appear, how modules are named).
+6. **Check whether `issues/` is tracked by git.** Run `git rev-parse --is-inside-work-tree` and `git check-ignore -q issues/`. The result determines whether lifecycle events below produce commits or are working-copy-only edits — see the "Git tracking" section.
 
 If `issues/` doesn't exist at all and the user is asking to file something, ask once: "I don't see an `issues/` folder yet — should I create one at the repo root?"
 
@@ -168,16 +169,22 @@ The standard way of working through open issues: each issue is handled by a fres
 When the user says "work through the open issues", "pick up the next bug", or "fix the next one":
 
 1. List `issues/*.md` (skip `Issues.md`). Find the lowest-numbered file whose status is `open`.
-2. Spawn a fresh subagent with the issue id and a brief task description: read `issues/NNNN.md`, fix the bug, follow the project's resolve workflow, return when done.
+2. Spawn a fresh subagent with the issue id and a brief task description. Tell the subagent explicitly to: read `issues/Issues.md` and `CLAUDE.md` first to absorb project conventions, then read `issues/NNNN.md` for the issue itself, then follow the project's resolve workflow and return when done. The fresh context is a feature — the subagent loads the project's rules cleanly each time, so the user can adjust them via `Issues.md` or `CLAUDE.md` and the next subagent will pick the changes up automatically.
 3. When the subagent returns, repeat for the next open issue — unless the user asked for just one, or the user wants to review before continuing.
 
 If the user asks to work on a specific id ("fix 0046"), skip the picking step and dispatch to that id directly.
 
 ### Subagent: claim → fix → build → commit → resolve
 
-When you've been dispatched to handle `NNNN`:
+When you've been dispatched to handle `NNNN`, you start with fresh context — so the first step is loading the project's conventions before touching anything.
 
-1. **Read `issues/NNNN.md`** in full, including any screenshots or logs in `issues/NNNN/`. If something is unclear, read related code before guessing.
+1. **Orient in the project.** Read these in order, every time, before making any edit:
+   - **`issues/Issues.md`** — the project's local guide. It defines the status vocabulary, module conventions, build/verify command, commit message conventions, and any project-specific rules. **If `Issues.md` contradicts this skill, follow `Issues.md`** — it's the project owner's chance to adjust the workflow per project, and it wins.
+   - **`CLAUDE.md`** at the repo root, if it exists — project-wide guidance for Claude. Often defines code conventions, restricted areas, build/test commands, and project-specific dos and don'ts. Treat its instructions as binding.
+   - **`issues/NNNN.md`** — the issue you're working on, in full, including any screenshots or logs in `issues/NNNN/`. If anything in the report is unclear, read related code before guessing.
+
+   If `Issues.md` and `CLAUDE.md` disagree, prefer `CLAUDE.md` for code/repo-wide conventions and `Issues.md` for issue-tracking specifics. They usually cover different ground.
+
 2. **Set status to `in-progress`** — edit the Status row and save. This is a working-copy edit only; do not commit. The Mac app reflects it within ~1s, signaling that the issue is claimed.
 3. **Make the code changes** required to fix the bug.
 4. **Run the project's build / test command** and confirm it passes. Fix any failures caused by your changes. If the build was already broken when you started (failures unrelated to your work), do not fix unrelated breakage — note it on the issue and bail (see below).

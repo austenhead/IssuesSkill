@@ -149,7 +149,15 @@ If the user names a specific issue ("fix 0046"), dispatch to that id directly.
 
 ### Subagent: claim → fix → build → commit → resolve
 
-1. **Read `issues/NNNN.md`** in full, including any attachments in `issues/NNNN/`.
+A subagent starts with fresh context, so its first job is loading the project's conventions before touching anything.
+
+1. **Orient in the project.** Read these in order, every time:
+   - **`issues/Issues.md`** (this file) — status vocabulary, module conventions, build/verify command, commit conventions, project-specific rules. **Authoritative for issue-tracking workflow.**
+   - **`CLAUDE.md`** at the repo root, if it exists — project-wide guidance, code conventions, restricted areas, build/test commands. **Treat its instructions as binding.**
+   - **`issues/NNNN.md`** — the issue you're working on, in full, including attachments in `issues/NNNN/`.
+
+   If the two project guides disagree, prefer `CLAUDE.md` for code/repo conventions and this file for issue-tracking specifics.
+
 2. **Set status to `in-progress`** in the markdown — working copy only, no commit. The Mac app picks it up immediately.
 3. **Make the code changes** required to fix the bug.
 4. **Run the project build / verification command** and confirm it passes. Fix failures caused by your changes. If the build was already failing before you started, note it on the issue and bail — don't fix unrelated breakage.

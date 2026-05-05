@@ -53,6 +53,7 @@ Before filing or updating, take a few seconds to check the project's state. This
 2. **Read `issues/Issues.md`** if it exists — it's the project's local guide and defines the canonical status vocabulary, module conventions, and any project-specific rules. **`Issues.md` is authoritative for its project**: if anything there contradicts this skill, follow `Issues.md`.
 3. **If `Issues.md` is missing**, create it from `assets/Issues-md-template.md` before filing the first issue. Fill in the project name and a real one-paragraph description.
 4. **Glance at one or two existing issue files** to absorb the project's tone (how detailed are descriptions, what platforms appear, how modules are named).
+5. **Check whether `issues/` is tracked by git.** Run `git rev-parse --is-inside-work-tree` and `git check-ignore -q issues/`. The result determines whether lifecycle events below produce commits or are working-copy-only edits — see the "Git tracking" section.
 
 If `issues/` doesn't exist at all and the user is asking to file something, ask once: "I don't see an `issues/` folder yet — should I create one at the repo root?"
 
@@ -70,6 +71,45 @@ Use the **file value** (lowercase, hyphenated) in the issue's metadata table. Th
 
 The `resolved` → `closed` distinction is deliberate: `resolved` says "work landed", `closed` says "user confirmed". A subagent that finishes a fix may set `resolved`; only the user moves an issue to `closed`.
 
+## Git tracking
+
+Some projects keep `issues/` in git so the bug-tracking history lives alongside the code. Others ignore it via `.gitignore` because they treat issues as ephemeral workflow state. The skill respects whichever the project chose — **check before doing anything that could cause an unwanted commit.**
+
+### How to check
+
+```bash
+git rev-parse --is-inside-work-tree 2>/dev/null   # is this a git repo?
+git check-ignore -q issues/                        # exit 0 = ignored, 1 = tracked
+```
+
+Three outcomes:
+
+- **Not a git repo** (first command fails): edit files only; no commits ever.
+- **Repo, `issues/` is ignored** (second command exits 0): edit files only; no commits. The Mac app still picks up changes.
+- **Repo, `issues/` is tracked** (second command exits non-zero): every lifecycle event below produces a git commit.
+
+### What gets committed when `issues/` is tracked
+
+| Event | What's committed | Commit message |
+|---|---|---|
+| Filing a new issue | the new `NNNN.md` (and `Issues.md` if newly created) | `#NNNN <issue title>` |
+| Resolving a bug — code commit | code changes only | `#NNNN <verb> <title>` (the substantive commit) |
+| Resolving a bug — resolution commit | markdown update (status `resolved` + Closed + Commit + summary) | `#NNNN Resolve: <title>` |
+| Subagent bail (notes added, status reverted to open) | markdown update | `#NNNN Notes: <brief>` |
+| User-confirmed close | markdown update (status `closed`) | `#NNNN Close` |
+| Marking won't-fix (after user decision) | markdown update | `#NNNN Won't fix` |
+
+### Working-copy-only changes (no commit by the skill)
+
+- Setting status to `in-progress` at the start of subagent work — this is transient and gets superseded by the resolve commit. Committing every status flip would create excessive churn.
+- Any change the user explicitly says they'll commit themselves.
+
+The Mac app reflects working-copy state regardless of whether anything is committed yet, so an uncommitted in-progress flip is still visible to the user.
+
+### Why two commits to resolve, not one
+
+The **Commit** metadata row records the hash of the code-fix commit. That hash isn't known until *after* the code commit lands, so the row can't appear in the same commit it points to. Splitting resolution into a code commit and a follow-up resolution commit keeps each commit single-purpose — "fix the code" and "document the fix" — and lets the resolution commit reference the hash cleanly.
+
 ## Filing a new issue
 
 1. **Make sure `issues/Issues.md` exists.** If not, create it from `assets/Issues-md-template.md` first.
@@ -78,7 +118,8 @@ The `resolved` → `closed` distinction is deliberate: `resolved` says "work lan
 4. **Title** is a single declarative sentence describing the bug ("Reply button not functional on post cells"), not a question or a fix description.
 5. **Status** starts at `open`, always. Even if a fix is already in flight, file as `open` and update status separately.
 6. **First seen** is today's date (your `currentDate` context). Format `YYYY-MM-DD`.
-7. **Confirm to the user** in one line — issue number and title. Don't paste the whole file back.
+7. **If `issues/` is tracked by git**, commit the new file immediately so the issue enters git history with its `open` status. Stage `issues/NNNN.md` (and `issues/Issues.md` if you just created it) and commit with message `#NNNN <issue title>`. If `issues/` is ignored or there's no git repo, skip this step.
+8. **Confirm to the user** in one line — issue number and title. Don't paste the whole file back.
 
 ### Format details that always apply
 
@@ -89,12 +130,21 @@ The `resolved` → `closed` distinction is deliberate: `resolved` says "work lan
 
 ## Updating an existing issue
 
+For ad-hoc edits outside the standard resolve workflow — adding a note, attaching a screenshot, flipping status manually:
+
 1. Edit `issues/NNNN.md` in place. The Mac app picks up the change automatically.
 2. If status changed, update the **Status** row.
 3. If status moved to `resolved` or `closed`, add a `**Closed**` row with today's date. If the move to `resolved` was triggered by a fix commit, also add a `**Commit**` row with the short hash (`git rev-parse --short HEAD`).
 4. Touch only what changed — don't reformat the rest of the file. Diff-friendly edits matter when the user reviews through the Mac app.
+5. **If `issues/` is tracked by git**, commit the change. Use a message that fits the edit:
+   - `#NNNN Close` for a user-confirmed close
+   - `#NNNN Won't fix` for a wontfix decision
+   - `#NNNN Notes: <brief>` for added context or a screenshot
+   - `#NNNN Update <field>` for other targeted edits
 
-After a bug is closed, you may add `## Root cause` and `## Fix` sections explaining what was wrong and what landed. These are useful for future readers tracing why a fix happened.
+   The exception: setting status to `in-progress` at the start of subagent work is a transient working-copy edit and is *not* committed on its own — the resolve workflow's two commits supersede it.
+
+When an issue is moved to `resolved` via the standard workflow below, additional sections (`## Root cause`, `## Fix`, `## Files changed`, optional `## Gotchas`) get added to capture what was wrong and what landed. See "Resolving an issue" for the full structure.
 
 ### CRITICAL: do not close issues without explicit confirmation
 
@@ -128,10 +178,11 @@ If the user asks to work on a specific id ("fix 0046"), skip the picking step an
 When you've been dispatched to handle `NNNN`:
 
 1. **Read `issues/NNNN.md`** in full, including any screenshots or logs in `issues/NNNN/`. If something is unclear, read related code before guessing.
-2. **Set status to `in-progress`** — edit the Status row and save. The Mac app reflects this within ~1s, signaling that the issue is claimed and avoiding double-work.
+2. **Set status to `in-progress`** — edit the Status row and save. This is a working-copy edit only; do not commit. The Mac app reflects it within ~1s, signaling that the issue is claimed.
 3. **Make the code changes** required to fix the bug.
 4. **Run the project's build / test command** and confirm it passes. Fix any failures caused by your changes. If the build was already broken when you started (failures unrelated to your work), do not fix unrelated breakage — note it on the issue and bail (see below).
-5. **Make a single git commit.** The commit message starts with `#NNNN` and a short, declarative title describing what this commit does — choose the verb that actually fits (`Fix`, `Add`, `Refactor`, `Update`, `Remove`, etc.). Not every issue is a bug fix; missing features, design refinements, and audits each get the verb that matches. After the title, leave a blank line, then add a paragraph or two of details. Example:
+
+5. **Make the code commit.** Stage *only the code changes* — do not stage the issue markdown yet. The commit message starts with `#NNNN` and a short, declarative title — pick the verb that actually fits (`Fix`, `Add`, `Refactor`, `Update`, `Remove`, etc.). Not every issue is a bug fix; missing features, design refinements, and audits each get the verb that matches. After the title, leave a blank line, then add a paragraph or two of details. Example:
 
    ```
    #0046 Add navigation from avatar tap to profile
@@ -141,14 +192,29 @@ When you've been dispatched to handle `NNNN`:
    to push ProfileView. Verified on both feed and thread views.
    ```
 
-   This is the canonical format for issue-linked commits. If the project's `CLAUDE.md` or recent `git log` defines a different convention, follow that instead.
-6. **Capture the commit hash** with `git rev-parse --short HEAD` immediately after the commit lands. You'll record it in the next step.
-7. **Set status to `resolved`** and update the metadata table in one edit:
+   If the project's `CLAUDE.md` or recent `git log` defines a different convention, follow that instead.
+
+6. **Capture the commit hash** with `git rev-parse --short HEAD` immediately after the code commit lands. You'll record it on the issue in the next step.
+
+7. **Update the issue markdown** to mark it resolved. Edit the metadata table:
    - Change the Status row to `resolved`.
    - Add a `**Closed**` row with today's date.
    - Add a `**Commit**` row with the short hash from step 6.
 
-   Then add `## Root cause` and `## Fix` sections summarizing what was wrong and what landed — these are the future-reader's view of why the change happened. Mentioning the commit hash inline in `## Fix` is fine but optional; the metadata row is the canonical record.
+   Then add a structured summary in this order so the issue becomes a primary-source record of why the change happened:
+
+   - **`## Root cause`** — one paragraph on what was actually wrong (often different from what the original report suggested).
+   - **`## Fix`** — one paragraph on the approach you took.
+   - **`## Files changed`** — a bulleted list, one bullet per file you touched, each with a short note describing what changed in that file.
+   - **`## Gotchas`** *(optional)* — surprises, dead ends you tried, non-obvious behavior, or anything a future engineer working on similar code should know. Skip the section entirely if there's nothing notable. Be specific — across many issues these notes accumulate into docs about common pitfalls, and a vague "be careful with X" doesn't help future readers.
+
+   Mentioning the commit hash inline in `## Fix` is fine but optional; the `**Commit**` metadata row is the canonical record.
+
+8. **If `issues/` is tracked by git, make the resolution commit.** Stage `issues/NNNN.md` and commit with message `#NNNN Resolve: <issue title>`. Body of the commit should briefly describe what the resolution captures (e.g. "Records resolution of #NNNN; code change is in <hash>."). This second commit pairs with the code commit from step 5 — together they encode "fix landed, fix documented."
+
+   **If `issues/` is ignored or there's no git repo**, skip this step. The markdown change from step 7 is the entire record.
+
+Together, the metadata table (Status, Module, Platform, First seen, Closed, Commit) plus the summary sections plus the original Description/Steps/Expected/Actual give a complete record of the bug and its resolution. Future Claude sessions can grep across resolved issues to surface common gotchas and feed them into project-wide documentation.
 
 Status moves are `open` → `in-progress` → `resolved`. **Never set `closed`** — that's the user's transition after they verify the fix in the Mac app.
 
@@ -158,10 +224,11 @@ The project's build command lives in the project's docs (`Issues.md`, `CLAUDE.md
 
 If the bug is unreproducible, out of scope, or the build won't pass after reasonable effort:
 
-1. **Revert the status to `open`** so the issue goes back into the queue. Don't leave it at `in-progress` — that signals active work and blocks the next iteration.
-2. **Add a `## Notes` section** describing what you tried and why you stopped. Be specific: which approaches were attempted, what the failure mode was. The next subagent (or the user) will start from your notes.
-3. **Don't commit partial changes.** Discard or stash your working copy so the next attempt starts clean.
-4. Return to the orchestrator with a one-line summary explaining the bail.
+1. **Discard or stash any partial code changes.** The working copy needs to be clean before the bail commit so it doesn't accidentally include half-done work.
+2. **Revert the status to `open`** in the issue markdown so it goes back into the queue. Don't leave it at `in-progress` — that signals active work and blocks the next iteration.
+3. **Add a `## Notes` section** describing what you tried and why you stopped. Be specific: which approaches were attempted, what the failure mode was, what you'd try next. The next subagent (or the user) will start from your notes.
+4. **If `issues/` is tracked by git**, commit just the markdown update with message `#NNNN Notes: <one-line summary of the bail>`. If `issues/` is ignored, skip the commit.
+5. Return to the orchestrator with a one-line summary explaining the bail.
 
 Never use `wontfix` or `closed` as an escape hatch for a stuck issue — those are the user's decisions.
 

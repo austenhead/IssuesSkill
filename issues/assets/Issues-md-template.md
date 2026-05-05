@@ -28,6 +28,35 @@ issues/
 
 Use the **file value** (lowercase, hyphenated) in the issue's metadata table. The Mac app converts to the display name when rendering.
 
+## Git tracking
+
+This project's choice on whether `issues/` is in git determines whether lifecycle events produce commits. Check on every operation:
+
+```bash
+git rev-parse --is-inside-work-tree 2>/dev/null   # is this a git repo?
+git check-ignore -q issues/                        # exit 0 = ignored, 1 = tracked
+```
+
+- **Not a git repo, or `issues/` is ignored**: edit files only; never commit. The Mac app still tracks changes from the working copy.
+- **`issues/` is tracked**: each lifecycle event below produces its own commit.
+
+When tracked:
+
+| Event | What's committed | Commit message |
+|---|---|---|
+| File a new issue | the new `NNNN.md` (and `Issues.md` if newly created) | `#NNNN <issue title>` |
+| Resolve — code commit | code changes only | `#NNNN <verb> <title>` |
+| Resolve — resolution commit | markdown update (status + Closed + Commit + summary) | `#NNNN Resolve: <title>` |
+| Bail with notes | markdown only | `#NNNN Notes: <brief>` |
+| User-confirmed close | markdown only | `#NNNN Close` |
+| Won't fix | markdown only | `#NNNN Won't fix` |
+
+**Working-copy-only changes (no commit):**
+
+- Setting status to `in-progress` at the start of work — transient; the resolve commits supersede it. Committing every status flip would create noise.
+
+**Why two commits to resolve, not one:** the **Commit** metadata row records the hash of the code-fix commit, and that hash isn't known until *after* the code commit lands. Splitting resolution into a code commit and a resolution commit keeps each commit single-purpose ("fix the code", "document the fix") and lets the resolution commit reference the hash cleanly.
+
 ## Issue file format
 
 Each issue is `NNNN.md` (4-digit zero-padded) with this structure:
@@ -85,6 +114,7 @@ Any additional context, guesses at root cause, related code locations.
 3. Set status to `open`.
 4. Use today's date for First seen.
 5. Phrase the title as a single declarative sentence describing the bug, not a question or a fix description.
+6. **If `issues/` is tracked by git**, commit the new file with message `#NNNN <issue title>` so the issue enters git history with its `open` status. If ignored, skip.
 
 ## Updating an issue
 
@@ -120,10 +150,11 @@ If the user names a specific issue ("fix 0046"), dispatch to that id directly.
 ### Subagent: claim → fix → build → commit → resolve
 
 1. **Read `issues/NNNN.md`** in full, including any attachments in `issues/NNNN/`.
-2. **Set status to `in-progress`** and save. This claims the issue.
+2. **Set status to `in-progress`** in the markdown — working copy only, no commit. The Mac app picks it up immediately.
 3. **Make the code changes** required to fix the bug.
 4. **Run the project build / verification command** and confirm it passes. Fix failures caused by your changes. If the build was already failing before you started, note it on the issue and bail — don't fix unrelated breakage.
-5. **Make a single git commit.** The message starts with `#NNNN` and a short, declarative title — pick the verb that actually fits the change (`Fix`, `Add`, `Refactor`, `Update`, `Remove`, etc.); not every issue is a bug fix. Leave a blank line after the title, then add a paragraph of details. Example:
+
+5. **Make the code commit.** Stage *only the code changes* (not the issue markdown yet). The message starts with `#NNNN` and a short, declarative title — pick the verb that actually fits (`Fix`, `Add`, `Refactor`, `Update`, `Remove`, etc.); not every issue is a bug fix. Leave a blank line after the title, then add a paragraph of details. Example:
 
    ```
    #0046 Add navigation from avatar tap to profile
@@ -132,13 +163,22 @@ If the user names a specific issue ("fix 0046"), dispatch to that id directly.
    Threaded the author DID through the cell and connected onTapGesture
    to push ProfileView.
    ```
+
 6. **Capture the commit hash** with `git rev-parse --short HEAD`.
-7. **Set status to `resolved`** and update the metadata table:
+
+7. **Update the issue markdown** to mark it resolved:
    - Change Status to `resolved`.
    - Add a `**Closed**` row with today's date.
    - Add a `**Commit**` row with the short hash from step 6.
 
-   Add `## Root cause` and `## Fix` sections summarizing what was wrong and what landed.
+   Then add a structured summary in this order so the issue becomes a primary-source record:
+
+   - **`## Root cause`** — what was actually wrong (often different from the original report).
+   - **`## Fix`** — the approach taken.
+   - **`## Files changed`** — bulleted list, one bullet per file, with a short note describing what changed in each.
+   - **`## Gotchas`** *(optional)* — surprises, dead ends, non-obvious behavior, or anything a future engineer working on similar code should know. Skip if nothing is notable. Be specific — these notes accumulate across issues and feed future "common pitfalls" docs.
+
+8. **If `issues/` is tracked by git, make the resolution commit.** Stage `issues/NNNN.md` and commit with message `#NNNN Resolve: <title>`. Body briefly notes which code commit it pairs with (the hash from step 6). If `issues/` is ignored or there's no repo, skip — the markdown change from step 7 is the entire record.
 
 Status flow: `open` → `in-progress` → `resolved`. **Never set `closed`** — the user does that after verifying the fix.
 
@@ -152,10 +192,11 @@ Status flow: `open` → `in-progress` → `resolved`. **Never set `closed`** —
 
 If the bug is unreproducible, out of scope, or the build won't pass after reasonable effort:
 
-1. **Revert status to `open`** so the issue goes back into the queue.
-2. **Add a `## Notes` section** describing what was tried and why work stopped. Be specific.
-3. **Discard or stash partial changes** — don't commit them.
-4. Return with a one-line summary of why work stalled.
+1. **Discard or stash any partial code changes** so the bail doesn't accidentally include half-done work.
+2. **Revert status to `open`** in the issue markdown so the issue goes back into the queue.
+3. **Add a `## Notes` section** describing what was tried, why work stopped, and what you'd try next. Be specific.
+4. **If `issues/` is tracked by git**, commit the markdown change with message `#NNNN Notes: <one-line bail summary>`. If ignored, skip.
+5. Return with a one-line summary of why work stalled.
 
 Never use `wontfix` or `closed` to escape a stuck issue.
 

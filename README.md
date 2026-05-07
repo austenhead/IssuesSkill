@@ -58,6 +58,12 @@ IssuesSkill/
         └── parsing.md               # Mac app regex details (debug-only)
 ```
 
+## Maintaining the skill
+
+When the workflow described in `issues/SKILL.md` changes, mirror the change in `issues/assets/Issues-md-template.md`. The two files intentionally duplicate the workflow content so projects can use `Issues.md` as a self-contained guide even when the skill isn't installed. Without that discipline, the project-local guide drifts from the skill and the two start contradicting each other.
+
+The smaller files — `assets/issue-template.md` and `references/parsing.md` — are the canonical source for their respective concerns and don't need to be mirrored.
+
 ## License
 
 [MIT](LICENSE) © Brennan Stehling

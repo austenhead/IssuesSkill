@@ -1,6 +1,6 @@
 ---
 name: issues
-description: Manage a project's issues/ folder of NNNN.md markdown files — file new bugs, update status, attach screenshots, find the next number, keep issues/Issues.md in sync, and run the standard claim→fix→build→commit→resolve workflow when working through the queue. Use this skill whenever the user (or a subagent doing work on their behalf) describes a bug, regression, "broken" thing, or asks to "log this", "track this", "write this up", "make a ticket", "add to issues" — even if they don't explicitly say the word "issue". Also use it when the user asks to "work on the next open issue", "pick up the next bug", "fix issue NNNN", "work through the open issues", or to update status, attach a screenshot to an existing issue, or summarize what's open / in-progress for a project that has (or should have) an issues/ folder.
+description: Manage a project's issues/ folder of NNNN.md markdown files: file new bugs, update status, attach screenshots, and run the claim→fix→build→commit→resolve workflow. Use this skill whenever the user or a subagent describes a bug or broken thing, says "log this" / "make a ticket" / "track this", asks to work the next open issue or fix issue NNNN, or wants a summary of what's open — even when they don't explicitly say the word "issue". Triggers in any project that has (or should have) an issues/ folder.
 ---
 
 # Issues — markdown-based bug tracking
@@ -71,6 +71,19 @@ If `issues/` doesn't exist at all and the user is asking to file something, ask 
 Use the **file value** (lowercase, hyphenated) in the issue's metadata table. The Mac app converts to the display name when rendering.
 
 The `resolved` → `closed` distinction is deliberate: `resolved` says "work landed", `closed` says "user confirmed". A subagent that finishes a fix may set `resolved`; only the user moves an issue to `closed`.
+
+## Critical rule: never close without explicit confirmation
+
+The single most important rule of this skill: an issue must **never** be marked `resolved`, `closed`, or `wontfix` based on inference. Only when the user has said so in plain language. Specifically, do not infer resolution from:
+
+- a code change you (or a subagent) just made
+- a commit message
+- the filing of a related issue
+- the user saying "thanks, that looks better" or "nice"
+
+Always leave status at `open` (or `in-progress` if work has started) until the user confirms in words like "close this", "this is fixed", "mark resolved", or "won't fix". When in doubt, ask. The cost of asking is one turn; the cost of wrongly closing a real bug is that it disappears from the open list and gets forgotten.
+
+The deliberate exception is the subagent resolve: a subagent that finishes a fix may set status to `resolved` (work-is-done-but-not-confirmed). It must not set `closed` — that's the user's call. This separation is the entire reason `resolved` and `closed` are different states.
 
 ## Git tracking
 
@@ -147,18 +160,7 @@ For ad-hoc edits outside the standard resolve workflow — adding a note, attach
 
 When an issue is moved to `resolved` via the standard workflow below, additional sections (`## Root cause`, `## Fix`, `## Files changed`, optional `## Gotchas`) get added to capture what was wrong and what landed. See "Resolving an issue" for the full structure.
 
-### CRITICAL: do not close issues without explicit confirmation
-
-An issue must **never** be marked `resolved`, `closed`, or `wontfix` unless the user has said so. Do not infer resolution from:
-
-- a code change you (or a subagent) just made
-- a commit message
-- the filing of a related issue
-- the user saying "thanks, that looks better" or "nice"
-
-Always leave status as `open` (or `in-progress` if work has started) until the user confirms in plain language ("close this", "this is fixed", "mark resolved", "won't fix"). When in doubt, ask. The cost of asking is one turn; the cost of wrongly closing a real bug is that it disappears from the open list and gets forgotten.
-
-A subagent that fixes a bug may set status to `resolved` (work-is-done-but-not-confirmed). It must not set `closed` — that's the user's call. This separation is the whole reason the two states exist.
+For any move toward `resolved`, `closed`, or `wontfix`, the "Critical rule" at the top of this skill applies — those transitions require explicit user confirmation, not inference.
 
 ## Resolving an issue (the standard workflow)
 
@@ -279,10 +281,12 @@ For "give me a summary of open bugs", include the first paragraph of `## Descrip
 
 ## Anti-patterns to avoid
 
-- **Don't auto-close.** See the warning above. This is the single most important rule of the skill.
-- **Don't create or maintain `generate.py`, `issues.json`, `issues.js`, or `index.html`.** Those are vestiges of an older workflow. The Mac app has replaced them. If they exist in a legacy project, leave them alone but don't update them.
-- **Don't maintain an Index table** in `Issues.md` or anywhere else. The Mac app enumerates the folder directly. An Index table is extra state that goes stale.
-- **Don't reformat existing issues** while updating them. Touch only the rows or sections that changed.
-- **Don't skip numbers.** Use the next sequential 4-digit id. Reserved high numbers (8888, 9999) are intentional — leave them alone.
+- **Don't auto-close.** The Critical rule above is the single most important constraint in this skill.
+- **Don't reformat existing issues** while updating them. Touch only the rows or sections that changed — diff-friendly edits matter when the user is reviewing through the Mac app.
+- **Don't skip numbers.** Use the next sequential 4-digit id. Reserved high numbers (8888, 9999) for test/dummy issues are intentional — leave them alone.
 - **Don't paraphrase the user's bug report into something cleaner.** Their words are usually closer to the truth than your interpretation. Quote text from screenshots verbatim where it appears.
 - **Don't close-and-refile** to "clean up" an issue's history. Edit in place. The file *is* the history.
+
+### Legacy projects
+
+If the project still has `generate.py`, `issues.json`, `issues.js`, `index.html`, or a master Index table at the top of `Issues.md`, that's the older web-dashboard workflow. The Mac app has replaced it entirely. Leave the legacy files in place — don't update them, don't run them, don't add to them.

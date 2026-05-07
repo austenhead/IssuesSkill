@@ -28,6 +28,19 @@ issues/
 
 Use the **file value** (lowercase, hyphenated) in the issue's metadata table. The Mac app converts to the display name when rendering.
 
+## Critical rule: never close without explicit confirmation
+
+The most important rule of this workflow: an issue must **never** be marked `resolved`, `closed`, or `wontfix` based on inference. Only when the user has said so in plain language. Specifically, do not infer resolution from:
+
+- a code change you (or a subagent) just made
+- a commit message
+- the filing of a related issue
+- the user saying "thanks, that looks better"
+
+Leave status at `open` (or `in-progress` if work has started) until the user confirms in words like "close this", "this is fixed", "mark resolved", or "won't fix". When in doubt, ask.
+
+The deliberate exception: a subagent that finishes a fix may set `resolved` (work-is-done-but-not-confirmed). It must not set `closed` — that's the user's call. This separation is the entire reason `resolved` and `closed` are different states.
+
 ## Git tracking
 
 This project's choice on whether `issues/` is in git determines whether lifecycle events produce commits. Check on every operation:
@@ -120,20 +133,7 @@ Any additional context, guesses at root cause, related code locations.
 
 Edit the file in place. The Mac app picks up changes automatically — no follow-up command. Touch only the rows or sections that changed; don't reformat the rest.
 
-When status moves to `resolved` or `closed`, add a `**Closed**` row with the date. When the move to `resolved` was driven by a fix commit, also add a `**Commit**` row with the short hash.
-
-## CRITICAL: do not close issues without explicit confirmation
-
-An issue must **never** be marked `resolved`, `closed`, or `wontfix` unless the user has explicitly said so. Do not infer resolution from:
-
-- a code change you (or a subagent) just made
-- a commit message
-- the filing of a related issue
-- the user saying "thanks, that looks better"
-
-When in doubt, ask. Leave status at `open` or `in-progress` until the user confirms in plain language ("close this", "this is fixed", "mark resolved", "won't fix").
-
-A subagent that finishes implementing a fix may set status to `resolved` (the work-is-done-but-not-confirmed state). It must not set `closed` — that's the user's call.
+When status moves to `resolved` or `closed`, add a `**Closed**` row with the date. When the move to `resolved` was driven by a fix commit, also add a `**Commit**` row with the short hash. For any move toward `resolved`, `closed`, or `wontfix`, the "Critical rule" near the top of this file applies — those transitions require explicit user confirmation, not inference.
 
 ## Resolving an issue (the standard workflow)
 

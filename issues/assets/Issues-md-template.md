@@ -2,12 +2,15 @@
 
 {One-paragraph description: what app or repo this tracker covers, what platforms it targets, what kinds of issues belong here.}
 
-This file is the local guide for managing issues in this project. The companion Mac app (Issues.app) watches the `issues/` folder and renders the current state. Markdown files are the source of truth — there is no JSON, generated artifact, or index to keep in sync.
+This file is the local guide for managing issues in this project. The companion Mac app (Issues.app) watches the `issues/` folder and renders the current state. Markdown files (and `project.json`) are the source of truth — there is no generated artifact or index to keep in sync.
+
+The `# {Project Name}` heading above should match the `name` field in `issues/project.json`. `project.json` is the canonical source for the project's identity (name + repo URL); this guide is the workflow companion.
 
 ## Folder layout
 
 ```
 issues/
+├── project.json       # canonical project name + repo URL
 ├── Issues.md          # this file
 ├── 0001.md            # one file per issue
 ├── 0001/              # optional sibling folder for screenshots, crash logs, etc.
@@ -15,6 +18,22 @@ issues/
 ├── 0002.md
 └── …
 ```
+
+## Project config (`project.json`)
+
+A small JSON file naming the project and its repo. Two required fields:
+
+```json
+{
+  "name": "{Project Name}",
+  "url": "https://github.com/user/repo"
+}
+```
+
+- `name` — the project's human-readable name. Match the heading at the top of this file.
+- `url` — the project's canonical web URL (HTTPS form, not SSH). Typically a GitHub URL; GitLab, Bitbucket, etc. work too.
+
+When the repo moves or renames, edit `project.json` directly. Don't infer the project's name from the parent folder path — `project.json` is authoritative.
 
 ## Status values
 
@@ -57,7 +76,9 @@ When tracked:
 
 | Event | What's committed | Commit message |
 |---|---|---|
-| File a new issue | the new `NNNN.md` (and `Issues.md` if newly created) | `#NNNN <issue title>` |
+| Initial setup | `project.json` + `Issues.md` together | `Add issue tracker setup` (or bundle with the first `#NNNN` commit) |
+| File a new issue | the new `NNNN.md` (and `project.json` / `Issues.md` if newly created) | `#NNNN <issue title>` |
+| Edit project config | `project.json` only | `Update project config` (or e.g. `Update project URL`) |
 | Resolve — code commit | code changes only | `#NNNN <verb> <title>` |
 | Resolve — resolution commit | markdown update (status + Closed + Commit + summary) | `#NNNN Resolve: <title>` |
 | Bail with notes | markdown only | `#NNNN Notes: <brief>` |
@@ -122,12 +143,13 @@ Any additional context, guesses at root cause, related code locations.
 
 ## Filing a new issue
 
-1. Find the highest existing `NNNN.md` and increment. Start at `0001` if the folder is empty. Skip past reserved high numbers (e.g. `8888`, `9999` for test issues).
-2. Create `issues/NNNN.md` from the template.
-3. Set status to `open`.
-4. Use today's date for First seen.
-5. Phrase the title as a single declarative sentence describing the bug, not a question or a fix description.
-6. **If `issues/` is tracked by git**, commit the new file with message `#NNNN <issue title>` so the issue enters git history with its `open` status. If ignored, skip.
+1. Confirm `issues/project.json` exists. If missing, create it (see schema above) before filing the first issue — `name` should match this guide's heading; `url` is the project's canonical web URL (HTTPS, not SSH).
+2. Find the highest existing `NNNN.md` and increment. Start at `0001` if the folder is empty. Skip past reserved high numbers (e.g. `8888`, `9999` for test issues).
+3. Create `issues/NNNN.md` from the template.
+4. Set status to `open`.
+5. Use today's date for First seen.
+6. Phrase the title as a single declarative sentence describing the bug, not a question or a fix description.
+7. **If `issues/` is tracked by git**, commit the new file with message `#NNNN <issue title>` so the issue enters git history with its `open` status. If ignored, skip.
 
 ## Updating an issue
 

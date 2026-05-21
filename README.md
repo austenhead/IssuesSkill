@@ -4,9 +4,9 @@ A [Claude Code](https://claude.com/claude-code) skill for managing a project's `
 
 ## Overview
 
-Each project keeps an `issues/` folder containing zero-padded `NNNN.md` files (`0001.md`, `0002.md`, …) plus an `issues/Issues.md` config file. When you describe a bug to Claude — verbally, or by pasting a screenshot — Claude files it as a markdown file so the conversation can move on without the bug being lost. When you ask to update status, attach a screenshot, or summarize what's open, Claude works on the same files.
+Each project keeps an `issues/` folder containing zero-padded `NNNN.md` files (`0001.md`, `0002.md`, …) alongside an `issues/Issues.md` workflow guide and an `issues/project.json` file naming the project and its repo. When you describe a bug to Claude — verbally, or by pasting a screenshot or screen recording — Claude files it as a markdown file so the conversation can move on without the bug being lost. When you ask to update status, attach an artifact, generate a status report, or summarize what's open, Claude works on the same files.
 
-The skill lives entirely on the conventions: file format, status vocabulary, the rule that nothing gets closed without your explicit confirmation, and the macOS screenshot copy gotcha (filenames contain a U+202F narrow no-break space). It bundles the issue template and a self-contained project-local guide (`Issues.md`) so projects stay consistent across sessions.
+The skill lives entirely on the conventions: file format, status vocabulary, the rule that nothing gets closed without your explicit confirmation, and the macOS screenshot/screen-recording copy gotcha (filenames contain a U+202F narrow no-break space). It bundles a few small templates and a handful of load-on-demand references so projects stay consistent across sessions.
 
 ## How it fits with the Mac app
 
@@ -46,23 +46,34 @@ Status values: `open` · `in-progress` · `resolved` · `closed` · `wontfix`. T
 
 ```
 IssuesSkill/
+├── CONTRIBUTING.md                  # how to file issues / send PRs against this skill
 ├── install.sh                       # symlinks the skill into ~/.claude/skills/
 ├── LICENSE                          # MIT
 ├── README.md                        # this file
 └── issues/                          # the skill itself
     ├── SKILL.md                     # workflow + rules, always loaded by Claude
-    ├── assets/
+    ├── assets/                      # templates copied verbatim into target projects
     │   ├── issue-template.md        # template for a new NNNN.md
-    │   └── Issues-md-template.md    # template for a project's issues/Issues.md
-    └── references/
-        └── parsing.md               # Mac app regex details (debug-only)
+    │   ├── Issues-md-template.md    # template for a project's issues/Issues.md
+    │   └── project.json             # template for a project's issues/project.json
+    └── references/                  # docs loaded on demand by Claude
+        ├── issue-format.md          # canonical issue file format spec
+        ├── parsing.md               # Mac app regex details (debug-only)
+        ├── project-config.md        # schema and workflow for project.json
+        ├── status-reports.md        # snapshot reports of the issue queue
+        └── video-attachments.md     # how to attach videos (.mov, .mp4, etc.)
 ```
 
 ## Maintaining the skill
 
 When the workflow described in `issues/SKILL.md` changes, mirror the change in `issues/assets/Issues-md-template.md`. The two files intentionally duplicate the workflow content so projects can use `Issues.md` as a self-contained guide even when the skill isn't installed. Without that discipline, the project-local guide drifts from the skill and the two start contradicting each other.
 
-The smaller files — `assets/issue-template.md` and `references/parsing.md` — are the canonical source for their respective concerns and don't need to be mirrored.
+The other bundled files are canonical for their narrower concerns and don't need to be mirrored:
+
+- **Templates** (`assets/issue-template.md`, `assets/project.json`) — copied verbatim into target projects.
+- **References** (`references/*.md`) — loaded on demand by Claude when a relevant topic comes up.
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for how to file issues and send PRs against this skill.
 
 ## License
 

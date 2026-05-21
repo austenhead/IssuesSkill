@@ -27,7 +27,8 @@ This skill is also intended for **subagents**: when a subagent is doing work on 
 
 ```
 issues/
-├── Issues.md          # project config + local guide for managing issues
+├── project.json       # canonical project name + repo URL (see references/project-config.md)
+├── Issues.md          # local guide for managing issues
 ├── 0001.md            # one file per issue
 ├── 0001/              # optional sibling folder for screenshots, crash logs, etc.
 │   └── screenshot.png
@@ -35,7 +36,9 @@ issues/
 └── …
 ```
 
-That's it. No `generate.py`, no `index.html`, no `issues.json`. The Mac app reads the folder directly.
+That's it. No `generate.py`, no `index.html`, no `issues.json` index. The Mac app reads the folder directly.
+
+`project.json` is the canonical source for the project's name and URL — don't infer either from the parent folder path.
 
 ## Bundled files
 
@@ -43,6 +46,8 @@ This skill ships with templates and a parser reference. Use them rather than rec
 
 - **`assets/issue-template.md`** — the literal `NNNN.md` template. Read this with the `Read` tool when you need the exact structure for a new issue.
 - **`assets/Issues-md-template.md`** — the template for `issues/Issues.md`. This is the project-local guide an agent walking into the project will read; it should be self-contained. Copy it verbatim into a new project's `issues/` folder, then customize the project name, description, and module conventions.
+- **`assets/project.json`** — minimal template for `issues/project.json` (name + url). Copy when setting up a new project, then fill in the values.
+- **`references/project-config.md`** — schema and workflow for `issues/project.json` (the canonical source for the project's name and repo URL). Read this when creating or updating that file.
 - **`references/issue-format.md`** — canonical spec for issue file structure: filename, title, metadata table, sections, and the **attachment relative-path rule** (link target must include the `NNNN/` folder prefix, e.g. `1335/screenshot.png`, not `screenshot.png`). Read this when you're unsure how a file should be laid out.
 - **`references/video-attachments.md`** — how to attach `.mov`/`.mp4`/etc. videos: generating a poster frame with `qlmanage` and emitting the `[![alt](poster)](video)` image-inside-a-link form. Read this whenever a user hands over a screen recording or any video file.
 - **`references/parsing.md`** — exact regex patterns the Mac app uses. Read this only if you're debugging why something isn't appearing or rendering correctly. Not needed for normal filing.
@@ -53,11 +58,12 @@ This skill ships with templates and a parser reference. Use them rather than rec
 Before filing or updating, take a few seconds to check the project's state. This is cheap and prevents drift.
 
 1. **Find the issues folder.** Usually `issues/` at the repo root.
-2. **Read `issues/Issues.md`** if it exists — it's the project's local guide and defines the canonical status vocabulary, module conventions, build/verify command, commit conventions, and any project-specific rules. **`Issues.md` is authoritative for its project**: if anything there contradicts this skill, follow `Issues.md`.
-3. **Read `CLAUDE.md`** at the repo root if it exists — project-wide guidance for Claude that may include code conventions, restricted areas, or workflow tweaks that affect issue work. Treat its instructions as binding.
-4. **If `Issues.md` is missing**, create it from `assets/Issues-md-template.md` before filing the first issue. Fill in the project name and a real one-paragraph description.
-5. **Glance at one or two existing issue files** to absorb the project's tone (how detailed are descriptions, what platforms appear, how modules are named).
-6. **Check whether `issues/` is tracked by git.** Run `git rev-parse --is-inside-work-tree` and `git check-ignore -q issues/`. The result determines whether lifecycle events below produce commits or are working-copy-only edits — see the "Git tracking" section.
+2. **Read `issues/project.json`** if it exists — it's the canonical source for the project's name and repo URL. Don't infer either from the parent folder path. If it's missing, create it (see `references/project-config.md`) before continuing — it's a one-time setup step.
+3. **Read `issues/Issues.md`** if it exists — it's the project's local guide and defines the canonical status vocabulary, module conventions, build/verify command, commit conventions, and any project-specific rules. **`Issues.md` is authoritative for its project**: if anything there contradicts this skill, follow `Issues.md`.
+4. **Read `CLAUDE.md`** at the repo root if it exists — project-wide guidance for Claude that may include code conventions, restricted areas, or workflow tweaks that affect issue work. Treat its instructions as binding.
+5. **If `Issues.md` is missing**, create it from `assets/Issues-md-template.md` before filing the first issue. Fill in the project name (matching `project.json`) and a real one-paragraph description.
+6. **Glance at one or two existing issue files** to absorb the project's tone (how detailed are descriptions, what platforms appear, how modules are named).
+7. **Check whether `issues/` is tracked by git.** Run `git rev-parse --is-inside-work-tree` and `git check-ignore -q issues/`. The result determines whether lifecycle events below produce commits or are working-copy-only edits — see the "Git tracking" section.
 
 If `issues/` doesn't exist at all and the user is asking to file something, ask once: "I don't see an `issues/` folder yet — should I create one at the repo root?"
 
@@ -109,7 +115,9 @@ Three outcomes:
 
 | Event | What's committed | Commit message |
 |---|---|---|
-| Filing a new issue | the new `NNNN.md` (and `Issues.md` if newly created) | `#NNNN <issue title>` |
+| Initial setup | new `project.json` and `Issues.md` together | `Add issue tracker setup` (or bundle with the first `#NNNN` commit) |
+| Filing a new issue | the new `NNNN.md` (and `project.json` / `Issues.md` if newly created) | `#NNNN <issue title>` |
+| Editing project config | `project.json` only | `Update project config` (or more specific: `Update project URL`) |
 | Resolving a bug — code commit | code changes only | `#NNNN <verb> <title>` (the substantive commit) |
 | Resolving a bug — resolution commit | markdown update (status `resolved` + Closed + Commit + summary) | `#NNNN Resolve: <title>` |
 | Subagent bail (notes added, status reverted to open) | markdown update | `#NNNN Notes: <brief>` |
@@ -129,7 +137,7 @@ The **Commit** metadata row records the hash of the code-fix commit. That hash i
 
 ## Filing a new issue
 
-1. **Make sure `issues/Issues.md` exists.** If not, create it from `assets/Issues-md-template.md` first.
+1. **Make sure `issues/project.json` and `issues/Issues.md` exist.** If `project.json` is missing, create it from `assets/project.json` and populate `name` + `url` per `references/project-config.md`. If `Issues.md` is missing, create it from `assets/Issues-md-template.md`.
 2. **Pick the next number.** List `issues/`, find the highest existing `NNNN.md`, increment. Start at `0001` if empty. Skip past reserved high numbers like `8888`/`9999` (used for test issues).
 3. **Read `assets/issue-template.md`** and copy it to `issues/NNNN.md`, filling in the placeholders.
 4. **Title** is a single declarative sentence describing the bug ("Reply button not functional on post cells"), not a question or a fix description.

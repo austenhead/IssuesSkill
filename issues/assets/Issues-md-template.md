@@ -182,7 +182,13 @@ A subagent starts with fresh context, so its first job is loading the project's 
 
 2. **Set status to `in-progress`** in the markdown — working copy only, no commit. The Mac app picks it up immediately.
 3. **Make the code changes** required to fix the bug.
-4. **Run the project build / verification command** and confirm it passes. Fix failures caused by your changes. If the build was already failing before you started, note it on the issue and bail — don't fix unrelated breakage.
+4. **Build *and* run the project's verification command, and confirm tests actually executed and passed.** This step is mandatory and cannot be shortcutted.
+
+   - **Compilation is not verification.** "It builds" / "it compiles" / "no type errors" does not count. Tests must actually run — unit tests execute, UI tests run on a simulator, the app launches, whatever the project defines as proof. A green build with zero tests run is a failure of this step.
+   - **If you wrote or modified tests as part of the fix, you MUST execute those specific tests and observe them pass.** Confirm the test names you added appear in the run output, the counts increased, and the result was success. A test that compiles but never ran proves nothing.
+   - **Read the output, don't just check the exit code.** "0 tests run", "skipped", "no tests found", or a "build succeeded" line with no test summary are red flags even when the exit code is 0. iOS in particular will report `xcodebuild` success when no tests actually executed.
+   - **If verification cannot be run in your environment** (no simulator, missing credentials, hardware required, sandbox), you have not verified the fix. Do not mark the issue `resolved` — bail per "When the subagent can't finish" below, naming the verification step you couldn't run.
+   - **If the build was already failing before you started**, note it on the issue and bail — don't fix unrelated breakage.
 
 5. **Make the code commit.** Stage *only the code changes* (not the issue markdown yet). The message starts with `#NNNN` and a short, declarative title — pick the verb that actually fits (`Fix`, `Add`, `Refactor`, `Update`, `Remove`, etc.); not every issue is a bug fix. Leave a blank line after the title, then add a paragraph of details. Example:
 
@@ -196,7 +202,8 @@ A subagent starts with fresh context, so its first job is loading the project's 
 
 6. **Capture the commit hash** with `git rev-parse --short HEAD`.
 
-7. **Update the issue markdown** to mark it resolved:
+7. **Update the issue markdown** to mark it resolved. **Precondition:** step 4 actually executed and passed. If it didn't, bail — don't resolve.
+
    - Change Status to `resolved`.
    - Add a `**Closed**` row with today's date.
    - Add a `**Commit**` row with the short hash from step 6.
@@ -205,6 +212,7 @@ A subagent starts with fresh context, so its first job is loading the project's 
 
    - **`## Root cause`** — what was actually wrong (often different from the original report).
    - **`## Fix`** — the approach taken.
+   - **`## Verification`** — the exact command(s) run and what was observed (e.g. "`xcodebuild test -scheme MyAppUITests` — 14 tests passed including the 3 new tests in `ReplyButtonUITests`"). If new tests were added, name them and confirm they ran. Mandatory — this is the audit trail that distinguishes "verified" from "compiled and hoped".
    - **`## Files changed`** — bulleted list, one bullet per file, with a short note describing what changed in each.
    - **`## Gotchas`** *(optional)* — surprises, dead ends, non-obvious behavior, or anything a future engineer working on similar code should know. Skip if nothing is notable. Be specific — these notes accumulate across issues and feed future "common pitfalls" docs.
 

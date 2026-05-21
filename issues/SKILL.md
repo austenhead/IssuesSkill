@@ -200,7 +200,13 @@ When you've been dispatched to handle `NNNN`, you start with fresh context — s
 
 2. **Set status to `in-progress`** — edit the Status row and save. This is a working-copy edit only; do not commit. The Mac app reflects it within ~1s, signaling that the issue is claimed.
 3. **Make the code changes** required to fix the bug.
-4. **Run the project's build / test command** and confirm it passes. Fix any failures caused by your changes. If the build was already broken when you started (failures unrelated to your work), do not fix unrelated breakage — note it on the issue and bail (see below).
+4. **Build *and* run the project's verification command, and confirm tests actually executed and passed.** This step is not optional and cannot be skipped or shortcutted.
+
+   - **Compilation is not verification.** "It builds" / "it compiles" / "no type errors" does not count. The verification command must actually *execute* — unit tests run, UI tests run on a simulator, the app launches, whatever the project defines as proof. A green build with zero tests run is a failure of this step, not a pass.
+   - **If you wrote or modified tests as part of the fix, you MUST execute those specific tests and observe them pass.** Watch the output — confirm the test names you added appear in the run, the counts increased, and the result was success. A test that compiles but never ran proves nothing and is worse than no test at all (it implies coverage that doesn't exist).
+   - **Read the output, don't just check the exit code.** Look for "0 tests run", "skipped", "no tests found", "build succeeded" with no test summary — these are red flags even when the exit code is 0. iOS in particular will happily report a successful `xcodebuild` invocation when the test target didn't actually execute.
+   - **If verification cannot be run in your environment** (no simulator available, missing credentials, hardware required, sandbox restrictions), you have *not* verified the fix. Do not mark the issue `resolved`. Bail per the "When you can't finish" section below, and note in `## Notes` exactly which verification step you couldn't run and why, so the user (or the next subagent) can complete it.
+   - **If the build was already broken when you started** (failures unrelated to your work), do not fix unrelated breakage — note it on the issue and bail.
 
 5. **Make the code commit.** Stage *only the code changes* — do not stage the issue markdown yet. The commit message starts with `#NNNN` and a short, declarative title — pick the verb that actually fits (`Fix`, `Add`, `Refactor`, `Update`, `Remove`, etc.). Not every issue is a bug fix; missing features, design refinements, and audits each get the verb that matches. After the title, leave a blank line, then add a paragraph or two of details. Example:
 
@@ -216,7 +222,9 @@ When you've been dispatched to handle `NNNN`, you start with fresh context — s
 
 6. **Capture the commit hash** with `git rev-parse --short HEAD` immediately after the code commit lands. You'll record it on the issue in the next step.
 
-7. **Update the issue markdown** to mark it resolved. Edit the metadata table:
+7. **Update the issue markdown** to mark it resolved. **Precondition:** step 4 actually executed and passed — tests ran, output was observed, results were green. If you skipped, deferred, or shortcutted step 4, do not proceed to this step. Bail instead.
+
+   Edit the metadata table:
    - Change the Status row to `resolved`.
    - Add a `**Closed**` row with today's date.
    - Add a `**Commit**` row with the short hash from step 6.
@@ -225,6 +233,7 @@ When you've been dispatched to handle `NNNN`, you start with fresh context — s
 
    - **`## Root cause`** — one paragraph on what was actually wrong (often different from what the original report suggested).
    - **`## Fix`** — one paragraph on the approach you took.
+   - **`## Verification`** — one or two sentences naming the exact command(s) run and what was observed (e.g. "`xcodebuild test -scheme MyAppUITests` — 14 tests passed including the 3 new tests in `ReplyButtonUITests`"). If new tests were added, name them and confirm they ran. This section is mandatory; it's the audit trail that distinguishes "verified" from "compiled and hoped".
    - **`## Files changed`** — a bulleted list, one bullet per file you touched, each with a short note describing what changed in that file.
    - **`## Gotchas`** *(optional)* — surprises, dead ends you tried, non-obvious behavior, or anything a future engineer working on similar code should know. Skip the section entirely if there's nothing notable. Be specific — across many issues these notes accumulate into docs about common pitfalls, and a vague "be careful with X" doesn't help future readers.
 
@@ -320,6 +329,7 @@ For "give me a summary of open bugs", include the first paragraph of `## Descrip
 ## Anti-patterns to avoid
 
 - **Don't auto-close.** The Critical rule above is the single most important constraint in this skill.
+- **Don't confuse "compiles" with "verified".** Marking an issue `resolved` because the code built is the most common false-success failure mode. Tests must actually *run*. New tests in particular must execute and pass — a test that only compiles is not a test. If you can't run the verification step, you have not finished; bail with notes instead of resolving.
 - **Don't reformat existing issues** while updating them. Touch only the rows or sections that changed — diff-friendly edits matter when the user is reviewing through the Mac app.
 - **Don't skip numbers.** Use the next sequential 4-digit id. Reserved high numbers (8888, 9999) for test/dummy issues are intentional — leave them alone.
 - **Don't paraphrase the user's bug report into something cleaner.** Their words are usually closer to the truth than your interpretation. Quote text from screenshots verbatim where it appears.

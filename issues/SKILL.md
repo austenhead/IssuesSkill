@@ -152,6 +152,10 @@ The **Commit** metadata row records the hash of the code-fix commit. That hash i
 - Field rows in the metadata table must keep the field name in `**bold**` exactly.
 - `Module` can list multiple modules separated by ` / `.
 - `Platform` is `iOS`, `macOS`, `iPadOS`, `All`, or any string. `All` matters — the Mac app's platform filter treats it as matching every platform.
+- **`## Description` MUST be the first `##` section after the metadata table.** The Mac app treats everything between the metadata table and the first `##` heading as part of the metadata frontmatter and does not render it. Resolution notes, blockquote summaries, status banners, scoping audits — none of those go above Description. They go in their own `##` sections *after* Description.
+- **Description is the TL;DR.** Aim for 1–3 sentences (≤ ~12 non-blank lines). If you need more space to explain context, mechanism, or trade-offs, put that in a separate `## Long Description` section after Description. The Mac app's summary view shows only the first paragraph of Description; a wall-of-text Description is hostile to that surface.
+- **`## Resolution notes`** is the conventional section for a quote-block summary when an issue is resolved (e.g. `> 🟢 Resolved YYYY-MM-DD — …`). It goes *after* Description, never above the metadata table.
+- **`## Relation`** is the conventional section for bidirectional cross-links to parent / sibling / follow-on tickets. Cross-linking goes both directions: if A spawns B as a follow-on, A's Relation says `Follow-on: [#B](B.md)` and B's Relation says `Carved out of: [#A](A.md)`. Tickets that disappear from one side's Relation aren't actually linked.
 
 ## Updating an existing issue
 
@@ -229,8 +233,9 @@ When you've been dispatched to handle `NNNN`, you start with fresh context — s
    - Add a `**Closed**` row with today's date.
    - Add a `**Commit**` row with the short hash from step 6.
 
-   Then add a structured summary in this order so the issue becomes a primary-source record of why the change happened:
+   Then add a structured summary in this order so the issue becomes a primary-source record of why the change happened. **All resolution sections go AFTER `## Description`** — never between the metadata table and Description, where the Mac app's frontmatter parser will eat them.
 
+   - **`## Resolution notes`** *(optional but recommended)* — a one-line blockquote summary `> 🟢 Resolved YYYY-MM-DD — <one sentence>.` plus 1–2 follow-up sentences if useful. This is what the user reads first on the Mac app's detail view; keep it terse.
    - **`## Root cause`** — one paragraph on what was actually wrong (often different from what the original report suggested).
    - **`## Fix`** — one paragraph on the approach you took.
    - **`## Verification`** — one or two sentences naming the exact command(s) run and what was observed (e.g. "`xcodebuild test -scheme MyAppUITests` — 14 tests passed including the 3 new tests in `ReplyButtonUITests`"). If new tests were added, name them and confirm they ran. This section is mandatory; it's the audit trail that distinguishes "verified" from "compiled and hoped".
@@ -238,6 +243,8 @@ When you've been dispatched to handle `NNNN`, you start with fresh context — s
    - **`## Gotchas`** *(optional)* — surprises, dead ends you tried, non-obvious behavior, or anything a future engineer working on similar code should know. Skip the section entirely if there's nothing notable. Be specific — across many issues these notes accumulate into docs about common pitfalls, and a vague "be careful with X" doesn't help future readers.
 
    Mentioning the commit hash inline in `## Fix` is fine but optional; the `**Commit**` metadata row is the canonical record.
+
+   **No dangling follow-ups.** If your resolution carved out scope that you decided not to address ("the related X bug remains a separate, lower-priority follow-up"; "we'll handle Y in a future pass"), **file that follow-up as its own ticket before marking this one resolved** and link it bidirectionally — the parent's Resolution notes / Acceptance criteria point at the child, and the child's Relation section says it was carved out of the parent. A "follow-up" sentence with no ticket behind it is a thread that disappears the moment the issue gets closed; treat it as a bug in the workflow, not a feature.
 
 8. **If `issues/` is tracked by git, make the resolution commit.** Stage `issues/NNNN.md` and commit with message `#NNNN Resolve: <issue title>`. Body of the commit should briefly describe what the resolution captures (e.g. "Records resolution of #NNNN; code change is in <hash>."). This second commit pairs with the code commit from step 5 — together they encode "fix landed, fix documented."
 
@@ -329,11 +336,23 @@ For "give me a summary of open bugs", include the first paragraph of `## Descrip
 ## Anti-patterns to avoid
 
 - **Don't auto-close.** The Critical rule above is the single most important constraint in this skill.
+- **Don't put anything above `## Description`.** No resolution-status blockquote, no scoping audit, no banner. The Mac app eats whatever sits between the metadata table and the first `##` — the content is effectively invisible. If you have something to say at the top, say it inside `## Description` or in a dedicated section after it (see "Format details that always apply").
+- **Don't leave dangling follow-ups in prose.** "Will be addressed in a future pass" / "remains a separate, lower-priority follow-up" / "out of scope here, will revisit" — each of those phrases is a real piece of scope that needs a real ticket. File it, link both ways, then mark the parent resolved. Dropping the follow-up into the parent's text alone means it disappears the moment the parent gets closed.
 - **Don't confuse "compiles" with "verified".** Marking an issue `resolved` because the code built is the most common false-success failure mode. Tests must actually *run*. New tests in particular must execute and pass — a test that only compiles is not a test. If you can't run the verification step, you have not finished; bail with notes instead of resolving.
 - **Don't reformat existing issues** while updating them. Touch only the rows or sections that changed — diff-friendly edits matter when the user is reviewing through the Mac app.
 - **Don't skip numbers.** Use the next sequential 4-digit id. Reserved high numbers (8888, 9999) for test/dummy issues are intentional — leave them alone.
 - **Don't paraphrase the user's bug report into something cleaner.** Their words are usually closer to the truth than your interpretation. Quote text from screenshots verbatim where it appears.
 - **Don't close-and-refile** to "clean up" an issue's history. Edit in place. The file *is* the history.
+
+## Umbrella + phase tickets (for big projects)
+
+When a chunk of work is large enough that a single ticket would balloon — multi-week refactors, cross-cutting initiatives, anything with more than ~3 independently-shippable pieces — use the **umbrella pattern**:
+
+- One **umbrella ticket** scopes the project: the why, the phases, the acceptance criteria for the whole. It doesn't ship code itself.
+- Each phase / sub-piece is its own ticket, child of the umbrella. The child's Relation section says `Parent: [#NNNN](NNNN.md)`. The umbrella keeps a checklist (or table) of children and their status.
+- As children resolve, **re-audit the downstream phases** before opening them — the work that already shipped often changes what's needed next, and an audit on the umbrella catches the drift before the next phase starts.
+
+This is heavier than a single ticket but it pays for itself once a project crosses ~2 weeks: each phase has a focused conversation, the umbrella stays scannable, and "what's left?" is one glance at the children's statuses. The umbrella's status stays `in-progress` until every child is terminal (`resolved` / `closed` / `wontfix`); only then does the umbrella itself move to `resolved`.
 
 ### Legacy projects
 

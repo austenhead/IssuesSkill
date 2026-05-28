@@ -21,11 +21,71 @@ You don't need the Mac app to use the skill, and you don't need the skill to use
 
 ## Installation
 
-```sh
+### Quick install (recommended) — `npx skills`
+
+Installs across supported AI coding agents (Claude Code, Codex, Cursor, and others)
+with one command:
+
+```bash
+npx skills add brennanMKE/IssuesSkill --skill issues
+```
+
+Target specific tools, or run non-interactively:
+
+```bash
+npx skills add brennanMKE/IssuesSkill --skill issues -a claude-code -a codex
+npx skills add brennanMKE/IssuesSkill --skill issues -a claude-code -g -y
+```
+
+> **Claude Code note:** if the skill installs but Claude Code doesn't see it, it
+> likely landed in `~/.agents/skills/` without a `~/.claude/skills/` symlink. Fix:
+> ```bash
+> ln -s ~/.agents/skills/issues ~/.claude/skills/issues
+> ```
+
+### Manual install — `install.sh`
+
+Clone the repo and run the installer. It links the skill into the global skills dir
+of every detected tool (Claude Code, Codex):
+
+```bash
+git clone https://github.com/brennanMKE/IssuesSkill.git
+cd IssuesSkill
 ./install.sh
 ```
 
-The installer symlinks the skill into `~/.claude/skills/` so it's available across all your Claude Code sessions. If you've already installed it, the script will offer to replace the existing version.
+Cursor has no global skills directory, so install it per project:
+
+```bash
+./install.sh --project /path/to/your/project   # links into <project>/.cursor/skills
+```
+
+Install straight from git without a manual clone (caches and updates on re-run):
+
+```bash
+REPO_URL=https://github.com/brennanMKE/IssuesSkill.git ./install.sh
+```
+
+Because `install.sh` uses symlinks, edits to the skill files are picked up without
+reinstalling.
+
+### Where skills live
+
+| Tool        | Global               | Project            |
+|-------------|----------------------|--------------------|
+| Claude Code | `~/.claude/skills/`  | `.claude/skills/`  |
+| Codex CLI   | `~/.codex/skills/`   | `.codex/skills/`   |
+| Cursor      | *(project only)*     | `.cursor/skills/`  |
+
+## Removal
+
+```bash
+rm ~/.claude/skills/issues
+rm ~/.codex/skills/issues
+rm /path/to/project/.cursor/skills/issues
+```
+
+Removing a symlink leaves the source repo untouched.
 
 ## Usage
 

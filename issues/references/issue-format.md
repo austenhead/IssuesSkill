@@ -55,21 +55,34 @@ When the issue moves to `resolved` or `closed`, two more rows get appended:
 
 In order:
 
-1. `## Description` — what is wrong. **First paragraph leads with the punchline** — the Mac app's summary view shows only that paragraph.
-2. `## Steps to reproduce` — numbered list. Optional for design/feature issues.
-3. `## Expected behavior` — one paragraph. Optional.
-4. `## Actual behavior` — one paragraph. Optional.
-5. `## Attachments` — image/file links. See below for path rules. Omit the section if there are no attachments.
-6. `## Notes` — any extra context, guesses at root cause, related code locations. Optional.
+1. `## Description` — TL;DR what is wrong (1 concise human readable paragraph). **Always first `##` heading after metadata table.** First paragraph leads with the punchline. — the Mac app's summary view shows only that paragraph.
+2. `## Long Description` *(optional)* — deeper context if Description alone isn't enough.
+3. `## Steps to reproduce` — numbered list. Optional for design/feature issues.
+4. `## Expected behavior` — one paragraph. Optional.
+5. `## Actual behavior` — one paragraph. Optional.
+6. `## Attachments` — image/file links. See below for path rules. Omit the section if there are no attachments.
+7. `## Notes` — any extra context, guesses at root cause, related code locations. Optional.
+8. `## Relation` *(optional)* — bidirectional links to parent / sibling / follow-on tickets.
 
 When an issue is resolved via the standard workflow, additional sections get appended after the original ones:
 
-7. `## Root cause` — what was actually wrong.
-8. `## Fix` — the approach taken.
-9. `## Files changed` — bulleted list, one bullet per file with a short note.
-10. `## Gotchas` — optional. Surprises, dead ends, non-obvious behavior.
+9. `## Resolution notes` *(optional but recommended)* — a one-line blockquote `> 🟢 Resolved YYYY-MM-DD — <summary>.` plus 1–2 sentences of follow-up. This is the "what's the punchline of the resolution" surface.
+10. `## Root cause` — what was actually wrong.
+11. `## Fix` — the approach taken.
+12. `## Verification` — the exact command(s) run and what was observed. Mandatory; see SKILL.md "Resolving an issue".
+13. `## Files changed` — bulleted list, one bullet per file with a short note.
+14. `## Gotchas` — optional. Surprises, dead ends, non-obvious behavior.
 
 The Mac app currently only parses the metadata table and `## Description`. Other sections render in the detail panel but aren't filtered/searched against — keep them readable for humans.
+
+### Cross-link follow-ups, don't leave them in prose
+
+If a resolution carves out scope you won't address in this ticket ("the related X bug remains a separate, lower-priority follow-up"; "we'll handle Y in a future pass"), **file X as its own ticket before marking this one resolved**, and link bidirectionally in both tickets' `## Relation` sections:
+
+- Parent: `Follow-on: [#XXXX](XXXX.md) — <one-line scope note>.`
+- Child: `Carved out of: [#NNNN](NNNN.md) — <one-line scope note>.`
+
+A "follow-up" sentence with no ticket behind it disappears the moment the parent closes. Treat the unlinked follow-up as a bug in the workflow.
 
 ## Attachment paths — the relative-path rule
 
